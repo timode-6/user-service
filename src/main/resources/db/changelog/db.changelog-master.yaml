@@ -1,0 +1,95 @@
+databaseChangeLog:
+  - changeSet:
+    id: 1
+    author: timode-6
+    changes:
+      - createTable:
+          tablename: users
+          columns:
+            - column:
+                name: id
+                type: int
+                constraints:
+                  primaryKey: true
+                  autoIncrement: true
+            - column:
+                name: name
+                type: varchar(100)
+            - column: 
+                name: surname
+                type: varchar(100)
+            - column: 
+                name: birth_date
+                type: date
+            - column:
+                name: email
+                type: varchar(255)
+                constraints:
+                  unique: true
+            - column:
+                name: active
+                type: boolean
+            - column:
+                name: created_at
+                type: timestamp
+                constraints:
+                  defaultValueComputed: CURRENT_TIMESTAMP
+            - column:
+                name: updated_at
+                type: timestamp
+                constraints:
+                  defaultValueComputed: CURRENT_TIMESTAMP
+
+      - addIndex:
+        tablename: users
+        columns:
+          - name: email
+
+  - changeSet:
+      id: 2
+      author: timode-6
+      changes:
+        - createTable:
+            tableName: payment_cards
+            columns:
+              - column:
+                  name: id
+                  type: int
+                  constraints:
+                    primaryKey: true
+                    autoIncrement: true
+              - column:
+                  name: user_id
+                  type: int
+                  constraints:
+                    foreignKeyName: fk_user_id
+                    references: users(id)
+              - column:
+                  name: number
+                  type: varchar(20)
+              - column: 
+                  name: holder
+                  type: varchar(100)
+              - column:
+                  name: expiration_date
+                  type: date
+              - column:
+                  name: active
+                  type: boolean
+              - column: 
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    defaultValueComputed: CURRENT_TIMESTAMP
+              - column:
+                  name: updated_at
+                  type: timestamp
+                  constraints:
+                    defaultValueComputed: CURRENT_TIMESTAMP
+
+  - addIndex:
+      tableName: payment_cards
+      columns:
+        - name: user_id
+
+               
