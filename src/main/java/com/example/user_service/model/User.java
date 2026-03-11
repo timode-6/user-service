@@ -1,15 +1,23 @@
 package com.example.user_service.model;
 
 import jakarta.persistence.*;
-import java.util.Set;
 import lombok.Setter;
 import lombok.Getter;
-import java.time.LocalDateTime;
+import lombok.RequiredArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+
+import java.time.LocalDate;
+import java.util.Set;
 
 
 @Entity
 @Table(name = "users")
-@Setter@Getter
+@Setter
+@Getter
+@Builder
+@AllArgsConstructor
+@RequiredArgsConstructor
 public class User extends BaseEntity {
     
     @Id
@@ -18,7 +26,7 @@ public class User extends BaseEntity {
     
     private String name;
     private String surname;
-    private LocalDateTime birthDate;
+    private LocalDate birthDate;
     private String email;
     private boolean active;
 

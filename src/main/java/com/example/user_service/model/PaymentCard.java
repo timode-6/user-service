@@ -3,13 +3,19 @@ package com.example.user_service.model;
 import jakarta.persistence.*;
 import lombok.Setter;
 import lombok.Getter;
-import java.time.LocalDateTime;
+import lombok.RequiredArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 
-
+import java.time.LocalDate;
 
 @Entity
 @Table(name = "payment_cards")
-@Setter@Getter
+@Setter
+@Getter
+@Builder
+@AllArgsConstructor
+@RequiredArgsConstructor
 public class PaymentCard extends BaseEntity {
     
     @Id
@@ -22,7 +28,7 @@ public class PaymentCard extends BaseEntity {
 
     private String number;
     private String holder;
-    private LocalDateTime expirationDate;
+    private LocalDate expirationDate;
     private boolean active;
 
 }
