@@ -1,11 +1,17 @@
 package com.example.user_service.service;
 
-import com.example.user_service.model.*;
+import com.example.user_service.model.User;
+import com.example.user_service.model.PaymentCard;
+import com.example.user_service.dto.UserDTO;
+import com.example.user_service.dto.PaymentCardDTO;
+import com.example.user_service.mapper.PaymentCardMapper;
+import com.example.user_service.mapper.UserMapper;
 import com.example.user_service.repository.*;
 import com.example.user_service.spec.UserSpecification;
 
 import lombok.AllArgsConstructor;
-
+import com.example.user_service.mapper.UserMapper;
+import com.example.user_service.mapper.PaymentCardMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -16,6 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.List;
+
 
 @Service
 @Transactional
@@ -29,33 +38,35 @@ public class UserServiceImpl implements UserService{
     private PaymentCardRepository paymentCardRepository;
 
     @Override
-    public User createUser(User user){
-        return userRepository.save(user);
+    public UserDTO createUser(UserDTO userDTO){
+        User user = UserMapper.INSTANCE.userDtoToUser(userDTO);
+        return UserMapper.INSTANCE.userToUserDTO(userRepository.save(user));
     }
 
     @Override
-    public PaymentCard createPaymentCard(Long userId, PaymentCard paymentCard) {
+    public PaymentCardDTO createPaymentCard(Long userId, PaymentCardDTO paymentCardDTO) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        if (user.getPaymentCards().size() >= 5) {
-            throw new RuntimeException("User cannot have more than 5 cards");
-        }
+            .orElseThrow(() -> new RuntimeException("User not found"));
+    
+        PaymentCard paymentCard = PaymentCardMapper.INSTANCE.paymentCardDtoToPaymentCard(paymentCardDTO);
         paymentCard.setUser(user);
-        return paymentCardRepository.save(paymentCard);
+        return PaymentCardMapper.INSTANCE.paymentCardToPaymentCardDTO(paymentCardRepository.save(paymentCard));
     }
 
     @Override
-    public Optional<User> getUserById(Long id) {
-        return userRepository.findById(id);
+    public Optional<UserDTO> getUserById(Long id) {
+        Optional<User> optionalUser = userRepository.findById(id);
+        return optionalUser.map(UserMapper.INSTANCE::userToUserDTO);
     }
 
     @Override
-    public Optional<PaymentCard> getPaymentCardById(Long id) {
-        return paymentCardRepository.findById(id);
+    public Optional<PaymentCardDTO> getPaymentCardById(Long id) {
+        Optional<PaymentCard> optionalPaymentCard = paymentCardRepository.findById(id);
+        return optionalPaymentCard.map(PaymentCardMapper.INSTANCE::paymentCardToPaymentCardDTO);
     }
 
     @Override
-    public Page<User> getAllUsers(String firstName, String surname, Pageable pageable) {
+    public Page<UserDTO> getAllUsers(String firstName, String surname, Pageable pageable) {
         Specification<User> spec = (root, query, builder) -> null;
         if (firstName != null) {
             spec = spec.and(UserSpecification.hasFirstName(firstName));
@@ -63,35 +74,48 @@ public class UserServiceImpl implements UserService{
         if (surname != null) {
             spec = spec.and(UserSpecification.hasSurname(surname));
         }
-        return userRepository.findAll(spec, pageable);
+
+        Page<User> usersPage = userRepository.findAll(spec, pageable);
+    
+        return usersPage.map(UserMapper.INSTANCE::userToUserDTO);
     }
 
     @Override
-    public Set<PaymentCard> getAllCardsByUserId(Long userId) {
-        return (Set<PaymentCard>) paymentCardRepository.findByUserId(userId);
+    public Set<PaymentCardDTO> getAllCardsByUserId(Long userId) {
+         List<PaymentCard> paymentCards = paymentCardRepository.findByUserId(userId);
+        return paymentCards.stream()
+                       .map(PaymentCardMapper.INSTANCE::paymentCardToPaymentCardDTO) 
+                       .collect(Collectors.toSet()); 
     }
 
     @Override
-    public User updateUser(Long id, User updatedUser) {
+    @Transactional
+    public UserDTO updateUser(Long id, UserDTO updatedUserDTO) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
-        user.setName(updatedUser.getName());
-        user.setSurname(updatedUser.getSurname());
-        user.setBirthDate(updatedUser.getBirthDate());
-        user.setEmail(updatedUser.getEmail());
-        user.setActive(updatedUser.isActive());
-        return userRepository.save(user);
+        user.setName(updatedUserDTO.getName());
+        user.setSurname(updatedUserDTO.getSurname());
+        user.setBirthDate(updatedUserDTO.getBirthDate());
+        user.setEmail(updatedUserDTO.getEmail());
+        user.setActive(updatedUserDTO.isActive());
+        return UserMapper.INSTANCE.userToUserDTO(userRepository.save(user));
     }
 
     @Override
-    public PaymentCard updatePaymentCard(Long id, PaymentCard updatedCard) {
+    @Transactional
+    public void deleteUser(Long id) {
+        userRepository.deleteById(id);
+    }
+
+    @Override
+    public PaymentCardDTO updatePaymentCard(Long id, PaymentCardDTO updatedCardDTO) {
         PaymentCard card = paymentCardRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Card not found"));
-        card.setNumber(updatedCard.getNumber());
-        card.setHolder(updatedCard.getHolder());
-        card.setExpirationDate(updatedCard.getExpirationDate());
-        card.setActive(updatedCard.isActive());
-        return paymentCardRepository.save(card);
+        card.setNumber(updatedCardDTO.getNumber());
+        card.setHolder(updatedCardDTO.getHolder());
+        card.setExpirationDate(updatedCardDTO.getExpirationDate());
+        card.setActive(updatedCardDTO.isActive());
+        return PaymentCardMapper.INSTANCE.paymentCardToPaymentCardDTO(paymentCardRepository.save(card));
     }
 
     @Override

@@ -1,6 +1,9 @@
 package com.example.user_service.service;
 
 import com.example.user_service.model.User;
+import com.example.user_service.dto.UserDTO;
+import com.example.user_service.mapper.PaymentCardMapper;
+import com.example.user_service.mapper.UserMapper;
 import com.example.user_service.model.PaymentCard;
 import com.example.user_service.repository.UserRepository;
 import com.example.user_service.repository.PaymentCardRepository;
@@ -29,6 +32,12 @@ class UserServiceImplTest {
     @InjectMocks
     private UserServiceImpl userService;
 
+    @InjectMocks
+    private UserMapper userMapper;
+
+    @InjectMocks
+    private PaymentCardMapper paymentCardMapper;
+
     private User user;
 
     @BeforeEach
@@ -48,7 +57,7 @@ class UserServiceImplTest {
     void createUserTest() {
         when(userRepository.save(any(User.class))).thenReturn(user);
 
-        User createdUser = userService.createUser(user);
+        User createdUser = UserMapper.INSTANCE.userDtoToUser(userService.createUser(UserMapper.INSTANCE.userToUserDTO(user)));
 
         assertNotNull(createdUser);
         assertEquals("John", createdUser.getName());
@@ -64,7 +73,7 @@ class UserServiceImplTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(paymentCardRepository.save(any(PaymentCard.class))).thenReturn(paymentCard);
 
-        PaymentCard createdCard = userService.createPaymentCard(1L, paymentCard);
+        PaymentCard createdCard = PaymentCardMapper.INSTANCE.paymentCardDtoToPaymentCard(userService.createPaymentCard(1L, PaymentCardMapper.INSTANCE.paymentCardToPaymentCardDTO(paymentCard)));
 
         assertNotNull(createdCard);
         assertEquals("1234-5678-9012-3456", createdCard.getNumber());
@@ -76,7 +85,7 @@ class UserServiceImplTest {
     void getUserByIdTest() {
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
 
-        Optional<User> foundUser = userService.getUserById(1L);
+        Optional<UserDTO> foundUser = userService.getUserById(1L);
 
         assertTrue(foundUser.isPresent());
         assertEquals("John", foundUser.get().getName());
@@ -91,7 +100,7 @@ class UserServiceImplTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(user));
         when(userRepository.save(any(User.class))).thenReturn(user);
 
-        User result = userService.updateUser(1L, updatedUser);
+        User result = UserMapper.INSTANCE.userDtoToUser(userService.updateUser(1L, UserMapper.INSTANCE.userToUserDTO(updatedUser)));
 
         assertEquals("Jane", result.getName());
         verify(userRepository, times(1)).save(user);
