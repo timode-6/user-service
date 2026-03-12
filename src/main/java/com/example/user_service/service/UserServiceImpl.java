@@ -108,6 +108,12 @@ public class UserServiceImpl implements UserService{
     }
 
     @Override
+    @Transactional
+    public void deletePaymentCard(Long id){
+        paymentCardRepository.deleteById(id);
+    }
+
+    @Override
     public PaymentCardDTO updatePaymentCard(Long id, PaymentCardDTO updatedCardDTO) {
         PaymentCard card = paymentCardRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Card not found"));
