@@ -30,9 +30,6 @@ public interface UserService {
     @Transactional
     void deleteUser(Long id);
 
-    @Transactional
-    void deletePaymentCard(Long id);
-
     PaymentCardDTO updatePaymentCard(Long id, PaymentCardDTO updateCardDto);
     
     void activateDeactivateUser(Long id, boolean active);

@@ -1,11 +1,10 @@
 databaseChangeLog:
   - changeSet:
       id: 1
-      author: user-service
+      author: timode-6
       changes:
         - createTable:
-            tableName: users
-            ifNotExists: true
+            tablename: users
             columns:
               - column:
                   name: id
@@ -40,17 +39,16 @@ databaseChangeLog:
                   type: timestamp
                   constraints:
                     defaultValueComputed: CURRENT_TIMESTAMP
-        - createIndex:
-            tableName: users
+        - addIndex:
+            tablename: users
             columns:
               - name: email
   - changeSet:
       id: 2
-      author: user-service
+      author: timode-6
       changes:
         - createTable:
             tableName: payment_cards
-            ifNotExists: true
             columns:
               - column:
                   name: id
@@ -86,7 +84,7 @@ databaseChangeLog:
                   type: timestamp
                   constraints:
                     defaultValueComputed: CURRENT_TIMESTAMP
-        - createIndex:
+        - addIndex:
             tableName: payment_cards
             columns:
               - name: user_id
