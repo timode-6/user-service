@@ -6,12 +6,15 @@ import jakarta.validation.constraints.Size;
 import lombok.Setter;
 import lombok.Getter;
 
+import java.io.Serializable;
 import java.time.LocalDate;
 
 @Getter
 @Setter
-public class PaymentCardDTO {
+public class PaymentCardDTO implements Serializable{
     
+    private static final Long serialVersionUID = 2L;
+
     private Long id;
 
     @NotBlank
