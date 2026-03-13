@@ -18,6 +18,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 
 
 import java.util.Optional;
@@ -37,13 +40,19 @@ public class UserServiceImpl implements UserService{
     @Autowired
     private PaymentCardRepository paymentCardRepository;
 
+    public static final String USER_CACHE = "users";
+    public static final String CARD_CACHE = "cards";
+
+
     @Override
+    @CachePut(value = USER_CACHE, key = "#result.id")
     public UserDTO createUser(UserDTO userDTO){
         User user = UserMapper.INSTANCE.userDtoToUser(userDTO);
         return UserMapper.INSTANCE.userToUserDTO(userRepository.save(user));
     }
 
     @Override
+    @CachePut(value = CARD_CACHE, key = "#result.id")
     public PaymentCardDTO createPaymentCard(Long userId, PaymentCardDTO paymentCardDTO) {
         User user = userRepository.findById(userId)
             .orElseThrow(() -> new RuntimeException("User not found"));
@@ -54,12 +63,14 @@ public class UserServiceImpl implements UserService{
     }
 
     @Override
+    @Cacheable(value = USER_CACHE, key = "#id")
     public Optional<UserDTO> getUserById(Long id) {
         Optional<User> optionalUser = userRepository.findById(id);
         return optionalUser.map(UserMapper.INSTANCE::userToUserDTO);
     }
 
     @Override
+    @Cacheable(value = CARD_CACHE, key = "#id")
     public Optional<PaymentCardDTO> getPaymentCardById(Long id) {
         Optional<PaymentCard> optionalPaymentCard = paymentCardRepository.findById(id);
         return optionalPaymentCard.map(PaymentCardMapper.INSTANCE::paymentCardToPaymentCardDTO);
@@ -90,6 +101,7 @@ public class UserServiceImpl implements UserService{
 
     @Override
     @Transactional
+    @CachePut(value = USER_CACHE, key = "#result.id")
     public UserDTO updateUser(Long id, UserDTO updatedUserDTO) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("User not found"));
@@ -103,17 +115,20 @@ public class UserServiceImpl implements UserService{
 
     @Override
     @Transactional
+    @CacheEvict(value = USER_CACHE, key = "#id")
     public void deleteUser(Long id) {
         userRepository.deleteById(id);
     }
 
     @Override
     @Transactional
+    @CacheEvict(value = CARD_CACHE, key = "#id")
     public void deletePaymentCard(Long id){
         paymentCardRepository.deleteById(id);
     }
 
     @Override
+    @CachePut(value = CARD_CACHE, key = "#result.id")
     public PaymentCardDTO updatePaymentCard(Long id, PaymentCardDTO updatedCardDTO) {
         PaymentCard card = paymentCardRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Card not found"));
