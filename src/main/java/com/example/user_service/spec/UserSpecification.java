@@ -15,4 +15,9 @@ public class UserSpecification {
             return criteriaBuilder.equal(root.get("surname"), surname);
         };
     }
+
+    public static Specification<User> isActive(){
+         return (root, query, builder) ->
+            builder.equal(root.get("active"), true);
+    }
 }

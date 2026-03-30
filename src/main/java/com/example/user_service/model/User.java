@@ -10,7 +10,6 @@ import lombok.Builder;
 import java.time.LocalDate;
 import java.util.Set;
 
-
 @Entity
 @Table(name = "users")
 @Setter
@@ -21,7 +20,7 @@ import java.util.Set;
 public class User extends BaseEntity {
     
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.SEQUENCE)
     private Long id;
     
     private String name;
