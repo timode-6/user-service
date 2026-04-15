@@ -5,8 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 
-
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "com.example.user_service")
 @EnableJpaAuditing
 @EnableCaching
 public class UserServiceApplication {

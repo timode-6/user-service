@@ -10,7 +10,6 @@ import lombok.Builder;
 import java.time.LocalDate;
 import java.util.Set;
 
-
 @Entity
 @Table(name = "users")
 @Setter

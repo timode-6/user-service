@@ -17,15 +17,16 @@ public class UserDTO implements Serializable{
 
     private Long id;
 
-    @NotBlank
+    @NotBlank(message = "FirstName is required")
     @Size(max = 100)
     private String name;
 
-    @NotBlank
+    @NotBlank(message = "Surname is required")
     @Size(max = 100)
     private String surname;
 
-    @Email
+    @NotBlank(message = "Email is required")
+    @Email(message = "Email must be valid")
     private String email;
 
     private LocalDate birthDate;

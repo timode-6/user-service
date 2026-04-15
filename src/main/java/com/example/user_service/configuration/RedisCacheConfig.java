@@ -1,7 +1,5 @@
 package com.example.user_service.configuration;
 
-import com.example.user_service.dto.UserDTO;
-
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.cache.RedisCacheConfiguration;

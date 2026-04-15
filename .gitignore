@@ -1,11 +1,13 @@
 HELP.md
 .gradle
 build/
-gradle/wrapper/
 !**/src/main/**/build/
 !**/src/test/**/build/
 .gitattributes
 secret.properties
+.envrc
+.env
+sonar-project.properties
 
 ### STS ###
 .apt_generated
@@ -39,8 +41,16 @@ out/
 .vscode/
 
 ### Gradle ###
-gradlew
 gradlew.bat
 
 ### Docker ###
 docker/
+.gradle
+build
+out
+.git
+node_modules
+**/*.class
+
+## Unused java files ##
+TestContainersConfiguration.java

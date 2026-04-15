@@ -3,9 +3,10 @@ package com.example.user_service.mapper;
 import com.example.user_service.dto.PaymentCardDTO;
 import com.example.user_service.model.PaymentCard;
 import org.mapstruct.Mapper;
+import org.mapstruct.ReportingPolicy;
 import org.mapstruct.factory.Mappers;
 
-@Mapper
+@Mapper(unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface PaymentCardMapper {
     
     PaymentCardMapper INSTANCE = Mappers.getMapper(PaymentCardMapper.class);
