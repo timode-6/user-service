@@ -46,7 +46,7 @@ public class UserServiceImpl implements UserService{
     }
 
     @Override
-    @Cacheable(value = USER_CACHE, key = "#id", unless = "#result == null || !#result.isPresent()")
+    @Cacheable(value = USER_CACHE, key = "#id", unless = "#result == null || !#result.isEmpty()")
     public Optional<UserDTO> getUserById(Long id) {
         return userRepository.findById(id).filter(User::isActive).map(UserMapper.INSTANCE::userToUserDTO);
     }
@@ -79,7 +79,6 @@ public class UserServiceImpl implements UserService{
         user.setSurname(updatedUserDTO.getSurname());
         user.setBirthDate(updatedUserDTO.getBirthDate());
         user.setEmail(updatedUserDTO.getEmail());
-        user.setActive(updatedUserDTO.isActive());
         return Optional.of(UserMapper.INSTANCE.userToUserDTO(userRepository.save(user)));
     }
 

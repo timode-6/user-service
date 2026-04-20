@@ -7,6 +7,7 @@ import com.example.user_service.service.userservice.UserService;
 import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
@@ -29,13 +30,16 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or #id.toString() == authentication.principal")
+
     public ResponseEntity<UserDTO> getUserById(@PathVariable Long id) {
         Optional<UserDTO> userDTO = userService.getUserById(id);
         return userDTO.map(ResponseEntity::ok)
                       .orElseThrow(() -> new UserNotFoundException(id));
     }
 
-   @GetMapping
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Page<UserDTO>> getAllUsers(
             @RequestParam(value = "firstName", required = false) String firstName,
             @RequestParam(value = "surname", required = false) String surname,
@@ -46,6 +50,7 @@ public class UserController {
     }
     
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN') or #id.toString() == authentication.principal")
     public ResponseEntity<UserDTO> updateUser(@PathVariable Long id, @Valid @RequestBody UserDTO userDTO) {
         Optional<UserDTO> updatedUser = userService.updateUser(id, userDTO);
         return updatedUser.map(ResponseEntity::ok)
@@ -53,8 +58,17 @@ public class UserController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
         userService.deleteUser(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/status")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> setUserStatus(@PathVariable Long id,
+                                              @RequestParam boolean active) {
+        userService.activateDeactivateUser(id, active);
         return ResponseEntity.noContent().build();
     }
 

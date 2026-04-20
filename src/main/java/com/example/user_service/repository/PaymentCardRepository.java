@@ -15,5 +15,6 @@ public interface PaymentCardRepository extends JpaRepository<PaymentCard, Long>,
 
     @Query("SELECT c FROM PaymentCard c WHERE c.holder = ?1")
     List<PaymentCard> findCardsByHolder(String holder);
+    
 
 }

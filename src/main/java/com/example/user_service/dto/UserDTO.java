@@ -6,11 +6,17 @@ import jakarta.validation.constraints.Size;
 import java.io.Serializable;
 import lombok.Setter;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 
 import java.time.LocalDate;
 
 @Getter
 @Setter
+@Builder
+@RequiredArgsConstructor
+@AllArgsConstructor
 public class UserDTO implements Serializable{
     
     private static final Long serialVersionUID = 1L;

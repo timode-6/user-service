@@ -1,203 +1,329 @@
 package com.example.user_service.integration;
 
+import com.example.user_service.dto.UserDTO;
+import com.example.user_service.model.User;
 import com.example.user_service.repository.UserRepository;
-import com.fasterxml.jackson.databind.JsonNode;
-
-import static org.hamcrest.Matchers.hasSize;
-
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.MediaType;
-import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.cache.CacheManager;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import java.time.LocalDate;
+
+import static org.hamcrest.Matchers.greaterThanOrEqualTo;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@AutoConfigureMockMvc
 class UserControllerIntegrationTest extends AbstractIntegrationTest {
-    
-
+ 
     @Autowired
     private UserRepository userRepository;
-    
-
+ 
+    @Autowired
+    private CacheManager cacheManager;
+ 
+    private UserDTO baseUserDTO;
+ 
     @BeforeEach
-    void cleanDatabase() {
+    void setUp() {
         userRepository.deleteAll();
+        baseUserDTO = UserDTO.builder()
+                .name("Alice")
+                .surname("Rossi")
+                .email("Alice.rossi@example.com")
+                .birthDate(LocalDate.of(1990, 1, 1))
+                .build();
     }
 
-
-    private String userJson(String name, String surname, String email, String birthDate, boolean active) {
-        return """
-                {
-                    "name": "%s",
-                    "surname": "%s",
-                    "email": "%s",
-                    "birthDate": "%s",
-                    "active": %s
-                }
-                """.formatted(name, surname, email, birthDate, active);
-    }
-
-    private String defaultUserJson() {
-        return userJson("John", "Doe", "john.doe@example.com", "1990-01-15", true);
-    }
-
-    private Long createUserAndReturnId(String json) throws Exception {
-        MvcResult result = mockMvc.perform(post("/api/users")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json))
+    @Test
+    void createUser_validPayload_returns201() throws Exception {
+        
+        mockMvc.perform(post("/api/users")
+                        .contentType(APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(baseUserDTO)))
                 .andExpect(status().isCreated())
-                .andReturn();
+                .andExpect(jsonPath("$.email").value(baseUserDTO.getEmail()))
+                .andExpect(jsonPath("$.id").isNumber());
+    }
+ 
+    @Test
+    void createUser_duplicateEmail_reactivatesExistingUser() throws Exception {
+        mockMvc.perform(post("/api/users")
+                        .contentType(APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(baseUserDTO)))
+                .andExpect(status().isCreated());
+ 
+        User existing = userRepository.findUserByEmail(baseUserDTO.getEmail());
+        existing.setActive(false);
+        userRepository.save(existing);
+ 
+        mockMvc.perform(post("/api/users")
+                        .contentType(APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(baseUserDTO)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.email").value(baseUserDTO.getEmail()));
+ 
+        User reactivated = userRepository.findUserByEmail(baseUserDTO.getEmail());
+        assertTrue(reactivated.isActive());
+    }
+ 
+    @Test
+    void createUser_missingRequiredFields_returns400() throws Exception {
+        UserDTO invalid = UserDTO.builder().build(); 
+        mockMvc.perform(post("/api/users")
+                        .contentType(APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(invalid)))
+                .andExpect(status().isBadRequest());
+    }
+ 
+    @Test
+    void createUser_noInternalSecret_returns403() throws Exception {
+        
+        MockMvc cleanMockMvc = MockMvcBuilders
+            .webAppContextSetup(context)
+            .apply(springSecurity())
+            .build();
 
-        JsonNode body = objectMapper.readTree(result.getResponse().getContentAsString());
-        return body.get("id").asLong();
+        cleanMockMvc.perform(post("/api/users")
+                        .contentType(APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(baseUserDTO)))
+                .andExpect(status().isForbidden());
+    }
+ 
+    @Test
+    void getUserById_asAdmin_existingUser_returns200() throws Exception {
+        Long id = createUserInDb(baseUserDTO);
+ 
+        mockMvc.perform(get("/api/users/{id}", id)
+                        .with(internalAuth()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(id))
+                .andExpect(jsonPath("$.email").value(baseUserDTO.getEmail()));
+    }
+ 
+    @Test
+    void getUserById_asOwner_returns200() throws Exception {
+        Long id = createUserInDb(baseUserDTO);
+ 
+        mockMvc.perform(get("/api/users/{id}", id)
+                        .with(userAuth(id)))
+                .andExpect(status().isOk());
     }
 
-
-    @Nested
-    @DisplayName("POST /api/users")
-    class CreateUser {
-
-        @Test
-        @DisplayName("should create a new user and return 201")
-        void shouldCreateUser() throws Exception {
-            mockMvc.perform(post("/api/users")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(defaultUserJson()))
-                    .andDo(print())
-                    .andExpect(status().isCreated())
-                    .andExpect(jsonPath("$.id").isNumber())
-                    .andExpect(jsonPath("$.name").value("John"))
-                    .andExpect(jsonPath("$.surname").value("Doe"))
-                    .andExpect(jsonPath("$.email").value("john.doe@example.com"))
-                    .andExpect(jsonPath("$.active").value(true));
-
-            assertThat(userRepository.count()).isEqualTo(1);
-        }
-
-        @Test
-        @DisplayName("should reactivate an existing user with the same email")
-        void shouldReactivateExistingUser() throws Exception {
-            Long userId = createUserAndReturnId(defaultUserJson());
-            mockMvc.perform(delete("/api/users/{id}", userId))
-                    .andExpect(status().isNoContent());
-
-            mockMvc.perform(post("/api/users")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(defaultUserJson()))
-                    .andExpect(status().isCreated())
-                    .andExpect(jsonPath("$.active").value(true));
-
-            assertThat(userRepository.count()).isEqualTo(1);
-        }
-
-        @Test
-        @DisplayName("should return 400 when required fields are missing")
-        void shouldReturn400WhenInvalid() throws Exception {
-            String invalidJson = """
-                    { "name": "" }
-                    """;
-
-            mockMvc.perform(post("/api/users")
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(invalidJson))
-                    .andExpect(status().isBadRequest());
-        }
+    @Test
+    void getUserById_nonExistentId_returns404() throws Exception {
+        mockMvc.perform(get("/api/users/{id}", 99999L)
+                        .with(internalAuth()))
+                .andExpect(status().isNotFound());
     }
 
-    @Nested
-    @DisplayName("GET /api/users/{id}")
-    class GetUserById {
-
-        @Test
-        @DisplayName("should return user when exists and is active")
-        void shouldReturnUser() throws Exception {
-            Long userId = createUserAndReturnId(defaultUserJson());
-
-            mockMvc.perform(get("/api/users/{id}", userId))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.id").value(userId))
-                    .andExpect(jsonPath("$.name").value("John"))
-                    .andExpect(jsonPath("$.surname").value("Doe")).andDo(result -> System.out.println(result.getResponse().getContentAsString()));
-        }
-
-        @Test
-        @DisplayName("should return 404 when user does not exist")
-        void shouldReturn404WhenNotFound() throws Exception {
-            mockMvc.perform(get("/api/users/{id}", 99999L))
-                    .andExpect(status().isNotFound()).andDo(result -> System.out.println(result.getResponse().getContentAsString()));
-        }
-
-        @Test
-        @DisplayName("should return 404 for a soft-deleted (inactive) user")
-        void shouldReturn404ForInactiveUser() throws Exception {
-            Long userId = createUserAndReturnId(defaultUserJson());
-
-            mockMvc.perform(delete("/api/users/{id}", userId))
-                    .andExpect(status().isNoContent());
-
-            mockMvc.perform(get("/api/users/{id}", userId))
-                    .andExpect(status().isNotFound()).andDo(result -> System.out.println(result.getResponse().getContentAsString()));
-        }
+    @Test
+    void getUserById_isServedFromCache_onSecondCall() throws Exception {
+        Long id = createUserInDb(baseUserDTO);
+ 
+        mockMvc.perform(get("/api/users/{id}", id).with(internalAuth()))
+                .andExpect(status().isOk());
+ 
+        userRepository.findById(id).ifPresent(u -> {
+            u.setName("CacheBypassName");
+            userRepository.save(u);
+        });
+ 
+        mockMvc.perform(get("/api/users/{id}", id).with(internalAuth()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value(baseUserDTO.getName()));
+    }
+ 
+    @Test
+    void getAllUsers_asAdmin_returnsPaginatedResults() throws Exception {
+        createUserInDb(baseUserDTO);
+        createUserInDb(UserDTO.builder()
+                .name("Jane").surname("Smith").email("jane@example.com")
+                .birthDate(LocalDate.of(1995, 5, 5)).build());
+ 
+        mockMvc.perform(get("/api/users")
+                        .with(internalAuth()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.totalElements").value(greaterThanOrEqualTo(2)));
+    }
+ 
+    @Test
+    void getAllUsers_filterByFirstName_returnsFiltered() throws Exception {
+        createUserInDb(baseUserDTO);
+        createUserInDb(UserDTO.builder()
+                .name("Alice").surname("Wonder").email("alice@example.com")
+                .birthDate(LocalDate.of(2000, 3, 3)).build());
+ 
+        mockMvc.perform(get("/api/users")
+                        .param("firstName", "Alice")
+                        .with(internalAuth()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].name").value("Alice"))
+                .andExpect(jsonPath("$.totalElements").value(2));
+    }
+ 
+    @Test
+    void updateUser_asAdmin_returns200() throws Exception {
+        Long id = createUserInDb(baseUserDTO);
+        UserDTO update = UserDTO.builder()
+                .name("Updated").surname("Name")
+                .email("updated@example.com")
+                .birthDate(LocalDate.of(1990, 1, 1))
+                .build();
+ 
+        mockMvc.perform(put("/api/users/{id}", id)
+                        .with(internalAuth())
+                        .contentType(APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(update)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Updated"))
+                .andExpect(jsonPath("$.email").value("updated@example.com"));
+    }
+ 
+    @Test
+    void updateUser_asOwner_returns200() throws Exception {
+        Long id = createUserInDb(baseUserDTO);
+        UserDTO update = UserDTO.builder()
+                .name("Self").surname("Update")
+                .email("self@example.com")
+                .birthDate(LocalDate.of(1990, 1, 1))
+                .build();
+ 
+        mockMvc.perform(put("/api/users/{id}", id)
+                        .with(userAuth(id))
+                        .contentType(APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(update)))
+                .andExpect(status().isOk());
+    }
+ 
+    @Test
+    void updateUser_nonExistentId_returns500() throws Exception {
+        mockMvc.perform(put("/api/users/{id}", 99999L)
+                        .with(internalAuth())
+                        .contentType(APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(baseUserDTO)))
+                .andExpect(status().isInternalServerError());
+    }
+ 
+    @Test
+    void updateUser_invalidatesAndUpdatesCacheEntry() throws Exception {
+        Long id = createUserInDb(baseUserDTO);
+ 
+        mockMvc.perform(get("/api/users/{id}", id).with(internalAuth()))
+                .andExpect(status().isOk());
+ 
+        UserDTO update = UserDTO.builder()
+                .name("Fresh").surname("Cache")
+                .email("fresh@example.com")
+                .birthDate(LocalDate.of(1990, 1, 1))
+                .build();
+ 
+        mockMvc.perform(put("/api/users/{id}", id)
+                        .with(internalAuth())
+                        .contentType(APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(update)))
+                .andExpect(status().isOk());
+ 
+        mockMvc.perform(get("/api/users/{id}", id).with(internalAuth()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.name").value("Fresh"));
+    }
+ 
+    @Test
+    void deleteUser_asAdmin_returns204() throws Exception {
+        Long id = createUserInDb(baseUserDTO);
+ 
+        mockMvc.perform(delete("/api/users/{id}", id)
+                        .with(internalAuth()))
+                .andExpect(status().isNoContent());
+ 
+        User user = userRepository.findById(id).orElseThrow();
+        assertFalse(user.isActive());
+    }
+ 
+ 
+    @Test
+    void deleteUser_evictsCacheEntry() throws Exception {
+        Long id = createUserInDb(baseUserDTO);
+ 
+        mockMvc.perform(get("/api/users/{id}", id).with(internalAuth()))
+                .andExpect(status().isOk());
+ 
+        mockMvc.perform(delete("/api/users/{id}", id).with(internalAuth()))
+                .andExpect(status().isNoContent());
+ 
+        mockMvc.perform(get("/api/users/{id}", id).with(internalAuth()))
+                .andExpect(status().isNotFound());
+    }
+ 
+    @Test
+    void deleteUser_nonExistentId_returns404() throws Exception {
+        mockMvc.perform(delete("/api/users/{id}", 99999L)
+                        .with(internalAuth()))
+                .andExpect(status().isNotFound());
+    }
+ 
+    @Test
+    void setUserStatus_deactivate_returns204() throws Exception {
+        Long id = createUserInDb(baseUserDTO);
+ 
+        mockMvc.perform(patch("/api/users/{id}/status", id)
+                        .param("active", "false")
+                        .with(internalAuth()))
+                .andExpect(status().isNoContent());
+ 
+        assertFalse(userRepository.findById(id).orElseThrow().isActive());
+    }
+ 
+    @Test
+    void setUserStatus_activate_returns204() throws Exception {
+        Long id = createUserInDb(baseUserDTO);
+        setUserActive(id, false);
+ 
+        mockMvc.perform(patch("/api/users/{id}/status", id)
+                        .param("active", "true")
+                        .with(internalAuth()))
+                .andExpect(status().isNoContent());
+ 
+        assertTrue(userRepository.findById(id).orElseThrow().isActive());
     }
 
-
-    @Nested
-    @DisplayName("PUT /api/users/{id}")
-    class UpdateUser {
-
-        @Test
-        @DisplayName("should update user fields and return 200")
-        void shouldUpdateUser() throws Exception {
-            Long userId = createUserAndReturnId(defaultUserJson());
-
-            String updatedJson = userJson("John", "Smith", "john.smith@example.com", "1990-01-15", true);
-
-            mockMvc.perform(put("/api/users/{id}", userId)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(updatedJson))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.id").value(userId))
-                    .andExpect(jsonPath("$.surname").value("Smith"))
-                    .andExpect(jsonPath("$.email").value("john.smith@example.com"));
-
-            mockMvc.perform(get("/api/users/{id}", userId))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.surname").value("Smith"));
-        }
-
-        @Test
-        @DisplayName("should return error when updating non-existent user")
-        void shouldFailWhenUserNotFound() throws Exception {
-            String json = defaultUserJson();
-
-            mockMvc.perform(put("/api/users/{id}", 99999L)
-                            .contentType(MediaType.APPLICATION_JSON)
-                            .content(json))
-                    .andExpect(status().is5xxServerError());
-        }
+    private Long createUserInDb(UserDTO dto) throws Exception {
+        String response = mockMvc.perform(post("/api/users")
+                        .with(internalAuth())
+                        .contentType(APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(dto)))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getContentAsString();
+ 
+        return objectMapper.readTree(response).get("id").asLong();
     }
-
-
-    @Nested
-    @DisplayName("DELETE /api/users/{id}")
-    class DeleteUser {
-
-        @Test
-        @DisplayName("should soft-delete user and return 204")
-        void shouldSoftDeleteUser() throws Exception {
-            Long userId = createUserAndReturnId(defaultUserJson());
-
-            mockMvc.perform(delete("/api/users/{id}", userId))
-                    .andExpect(status().isNoContent());
-
-            assertThat(userRepository.findById(userId)).isPresent();
-            assertThat(userRepository.findById(userId).get().isActive()).isFalse();
-        }
+ 
+    private void setUserActive(Long id, boolean active) {
+        userRepository.findById(id).ifPresent(u -> {
+            u.setActive(active);
+            userRepository.save(u);
+        });
+    }
+ 
+    private static RequestPostProcessor userAuth(Long userId) {
+        return request -> {
+            request.addHeader("X-Internal-Secret", internal);
+            request.addHeader("X-User-Id", userId.toString());
+            request.addHeader("X-User-Role", "USER");
+            return request;
+        };
     }
 }

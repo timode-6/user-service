@@ -11,16 +11,16 @@ public interface PaymentCardService {
 
     PaymentCardDTO createPaymentCard(Long userId, PaymentCardDTO paymentCardDto);
 
-    Optional<PaymentCardDTO> getPaymentCardById(Long id);
+    Optional<PaymentCardDTO> getPaymentCardById(Long userId, Long cardId);
 
     Set<PaymentCardDTO> getAllCardsByUserId(Long userId);
 
     @Transactional
-    void deletePaymentCard(Long id);
+    void deletePaymentCard(Long userId, Long cardId);
 
     @Transactional
     PaymentCardDTO updatePaymentCard(Long id, PaymentCardDTO updateCardDto);
 
-    void activateDeactivateCard(Long id, boolean active);
+    void activateDeactivateCard(Long userid, Long cardId, boolean active);
 
 }

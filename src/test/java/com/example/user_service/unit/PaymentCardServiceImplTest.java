@@ -128,7 +128,7 @@ class PaymentCardServiceImplTest {
         void shouldReturnPaymentCardDTO_whenCardExists() {
             when(paymentCardRepository.findById(1L)).thenReturn(Optional.of(paymentCard));
 
-            Optional<PaymentCardDTO> result = paymentCardService.getPaymentCardById(1L);
+            Optional<PaymentCardDTO> result = paymentCardService.getPaymentCardById(1L, 1L);
 
             assertThat(result).isPresent();
             assertThat(result.get().getNumber()).isEqualTo(paymentCard.getNumber());
@@ -140,7 +140,7 @@ class PaymentCardServiceImplTest {
         void shouldReturnEmpty_whenCardNotFound() {
             when(paymentCardRepository.findById(99L)).thenReturn(Optional.empty());
 
-            Optional<PaymentCardDTO> result = paymentCardService.getPaymentCardById(99L);
+            Optional<PaymentCardDTO> result = paymentCardService.getPaymentCardById(1L, 99L);
 
             assertThat(result).isEmpty();
             verify(paymentCardRepository, times(1)).findById(99L);
@@ -184,7 +184,7 @@ class PaymentCardServiceImplTest {
         void shouldCallDeleteById_whenDeletingCard() {
             when(paymentCardRepository.findById(paymentCard.getId())).thenReturn(Optional.of(paymentCard));
         
-            paymentCardService.deletePaymentCard(user.getId());
+            paymentCardService.deletePaymentCard(user.getId(), 1L);
 
             verify(paymentCardRepository, times(1)).save(paymentCard);
         }
@@ -249,7 +249,7 @@ class PaymentCardServiceImplTest {
             when(paymentCardRepository.findById(1L)).thenReturn(Optional.of(paymentCard));
             when(paymentCardRepository.save(paymentCard)).thenReturn(paymentCard);
 
-            paymentCardService.activateDeactivateCard(1L, true);
+            paymentCardService.activateDeactivateCard(1L, 1L, true);
 
             assertThat(paymentCard.isActive()).isTrue();
             verify(paymentCardRepository).save(paymentCard);
@@ -262,7 +262,7 @@ class PaymentCardServiceImplTest {
             when(paymentCardRepository.findById(1L)).thenReturn(Optional.of(paymentCard));
             when(paymentCardRepository.save(paymentCard)).thenReturn(paymentCard);
 
-            paymentCardService.activateDeactivateCard(1L, false);
+            paymentCardService.activateDeactivateCard(1L, 1L, false);
 
             assertThat(paymentCard.isActive()).isFalse();
             verify(paymentCardRepository).save(paymentCard);
@@ -274,7 +274,7 @@ class PaymentCardServiceImplTest {
         void shouldThrowException_whenCardNotFound(Long id) {
             when(paymentCardRepository.findById(id)).thenReturn(Optional.empty());
 
-            assertThatThrownBy(() -> paymentCardService.activateDeactivateCard(id, true))
+            assertThatThrownBy(() -> paymentCardService.activateDeactivateCard(1L, id, true))
                     .isInstanceOf(PaymentCardNotFoundException.class)
                     .hasMessage("Payment card not found: " + id);
 
